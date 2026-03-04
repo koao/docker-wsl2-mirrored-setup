@@ -1,0 +1,15 @@
+# Downloaded binaries
+downloads/
+
+# Backup exports
+backup/
+
+# Editor / OS
+.vscode/
+*.swp
+*~
+Thumbs.db
+Desktop.ini
+
+# Claude Code
+.claude/
