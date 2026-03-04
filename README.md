@@ -1,70 +1,78 @@
 # Docker Infrastructure for Windows (WSL2 + Docker CE)
 
-Docker Desktop を使わずに、WSL2 上の専用ディストロ「Docker」で Docker CE を動かす環境構築ツール。
+[日本語](README.ja.md)
 
-## アーキテクチャ
+A toolkit for running Docker CE on a dedicated WSL2 distro without Docker Desktop.
+
+## Why mirrored networking?
+
+In WSL2's default NAT mode, the source IP seen by applications inside containers is always the WSL virtual gateway (`172.x.x.1`, etc.) — the real client IP is lost.
+
+With **mirrored networking mode**, WSL2 shares the Windows host's network stack, so applications inside containers can see the client's actual IP address. This enables correct behavior for IP-based access logging, rate limiting, and authentication controls.
+
+## Architecture
 
 ```
 Windows (PowerShell)
-  └─ docker.cmd ラッパー (C:\Program Files\Docker-CLI\)
-       └─ wsl -d Docker --exec docker ...  ← Unix ソケット経由
-            └─ Docker CE デーモン (systemd管理)
-                 ├─ unix:///var/run/docker.sock (メイン)
-                 └─ tcp://127.0.0.1:2375 (VS Code Dev Containers 用)
+  └─ docker.cmd wrapper (C:\Program Files\Docker-CLI\)
+       └─ wsl -d Docker --exec docker ...  ← via Unix socket
+            └─ Docker CE daemon (managed by systemd)
+                 ├─ unix:///var/run/docker.sock (primary)
+                 └─ tcp://127.0.0.1:2375 (for VS Code Dev Containers)
 ```
 
-- ターミナルからの `docker` コマンドは `docker.cmd` → WSL 内の docker CLI → Unix ソケットで通信（TCP 不使用）
-- VS Code Dev Containers は `docker.exe`（静的バイナリ）→ TCP 2375 で通信
-- ディストロは `sleep infinity` バックグラウンドセッションで常時稼働
+- Terminal `docker` commands go through `docker.cmd` → docker CLI inside WSL → Unix socket (no TCP)
+- VS Code Dev Containers uses `docker.exe` (static binary) → TCP 2375
+- The distro stays alive via a `sleep infinity` background session
 
-## ディレクトリ構成
+## Directory structure
 
 ```
-├── 01-setup-wslconfig.ps1   # .wslconfig 配置（mirrored networking, vmIdleTimeout=-1）
-├── 02-create-distro.ps1     # Ubuntu 24.04 ベースの Docker ディストロ作成
-├── 02-init-distro.sh        # ディストロ内初期化（ユーザー作成等）
-├── 03-setup-docker.sh       # Docker CE インストール + デーモン設定
-├── 04-install-windows-cli.ps1 # Windows 側 CLI + Compose + Buildx インストール
-├── 05-install-portainer.sh  # Portainer CE デプロイ（HTTPS :9443）
-├── 06-verify.ps1 / .sh      # 動作確認スクリプト
-├── backup-distro.ps1        # ディストロを tar にエクスポート
-├── restore-distro.ps1       # tar からディストロをインポート
+├── 01-setup-wslconfig.ps1   # Deploy .wslconfig (mirrored networking, vmIdleTimeout=-1)
+├── 02-create-distro.ps1     # Create Docker distro based on Ubuntu 24.04
+├── 02-init-distro.sh        # Initialize distro (create user, etc.)
+├── 03-setup-docker.sh       # Install Docker CE + configure daemon
+├── 04-install-windows-cli.ps1 # Install Windows-side CLI + Compose + Buildx
+├── 05-install-portainer.sh  # Deploy Portainer CE (HTTPS :9443)
+├── 06-verify.ps1 / .sh      # Verification scripts
+├── backup-distro.ps1        # Export distro to tar
+├── restore-distro.ps1       # Import distro from tar
 ├── config/
-│   ├── docker.cmd           # Windows 用 docker ラッパー（本体）
-│   ├── wslconfig            # .wslconfig テンプレート
-│   ├── wsl.conf             # ディストロ内 /etc/wsl.conf テンプレート
-│   ├── daemon.json          # Docker デーモン設定テンプレート
-│   ├── docker-override.conf # systemd ドロップイン（-H fd:// 除去）
+│   ├── docker.cmd           # Windows docker wrapper
+│   ├── wslconfig            # .wslconfig template
+│   ├── wsl.conf             # /etc/wsl.conf template for the distro
+│   ├── daemon.json          # Docker daemon config template
+│   ├── docker-override.conf # systemd drop-in (removes -H fd://)
 │   └── portainer-compose.yaml
 ├── docs/
-│   └── setup-new-pc.md      # セットアップ手順書
-├── downloads/               # ダウンロード済みバイナリ（gitignore 推奨）
-└── backup/                  # エクスポートした tar ファイル
+│   └── setup-new-pc.md      # Step-by-step setup guide
+├── downloads/               # Downloaded binaries (gitignored)
+└── backup/                  # Exported tar files
 ```
 
-## セットアップ順序
+## Setup order
 
-番号付きスクリプトを順番に実行する（01 → 06）。
-バックアップからリストアする場合は 01 → restore-distro.ps1 → 04 → 06。
+Run the numbered scripts in order (01 → 06).
+To restore from a backup: 01 → restore-distro.ps1 → 04 → 06.
 
-## 重要な設計判断
+## Key design decisions
 
-- **TCP 2375 はターミナル用ではない**: `docker.cmd` は `wsl --exec` で WSL 内の docker を直接呼ぶ。TCP は VS Code Dev Containers 等の外部ツール用。mirrored networking モードで TCP 長時間接続が不安定なため。
-- **docker.cmd の起動チェック**: `wsl -l --running | findstr` は UTF-16 出力のためマッチ不可。代わりに `wsl -d Docker --exec docker info` で直接確認している。
-- **sleep infinity**: WSL はアクティブセッションがないとディストロを停止する（systemd サービスが動いていても）。`docker.cmd` が初回起動時に `start /b wsl -d Docker -- sh -c "exec sleep infinity"` でセッションを維持。
-- **--exec vs --**: `wsl --exec` はシェルを介さず直接実行。TTY/シグナル転送が正しく動作し、`docker exec -it` 等の対話的コマンドが安定する。`wsl --` はデフォルトシェル経由で実行されるため、対話的セッションが切れる問題があった。
+- **TCP 2375 is not for terminal use**: `docker.cmd` calls docker directly inside WSL via `wsl --exec`. TCP is only for external tools like VS Code Dev Containers, because mirrored networking mode makes long-lived TCP connections unstable.
+- **Startup check in docker.cmd**: `wsl -l --running | findstr` cannot match due to UTF-16 output. Instead, `wsl -d Docker --exec docker info` is used for direct verification.
+- **sleep infinity**: WSL shuts down a distro when there are no active sessions (even if systemd services are running). `docker.cmd` launches `start /b wsl -d Docker -- sh -c "exec sleep infinity"` on first run to keep the distro alive.
+- **--exec vs --**: `wsl --exec` runs commands directly without a shell, providing correct TTY/signal forwarding for interactive commands like `docker exec -it`. `wsl --` runs through the default shell, which caused interactive sessions to break.
 
-## Windows 側のインストール先
+## Windows-side installation paths
 
-| パス | 内容 |
-|------|------|
-| `C:\Program Files\Docker-CLI\docker.cmd` | ラッパー（PATH に追加済み） |
-| `C:\Program Files\Docker-CLI\bin\docker.exe` | Docker 静的バイナリ（VS Code 用） |
-| `%USERPROFILE%\.docker\cli-plugins\` | Compose / Buildx プラグイン |
+| Path | Description |
+|------|-------------|
+| `C:\Program Files\Docker-CLI\docker.cmd` | Wrapper script (added to PATH) |
+| `C:\Program Files\Docker-CLI\bin\docker.exe` | Docker static binary (for VS Code) |
+| `%USERPROFILE%\.docker\cli-plugins\` | Compose / Buildx plugins |
 
-## 編集時の注意
+## Development notes
 
-- `config/docker.cmd` を変更したら `C:\Program Files\Docker-CLI\docker.cmd` にもコピーが必要（管理者権限）
-- `.ps1` スクリプトの一部は `#Requires -RunAsAdministrator`（管理者権限が必要）
-- `.sh` スクリプトは WSL 内で実行する（`wsl -d Docker -- bash ...`）
-- ドキュメントは `docs/setup-new-pc.md` に集約
+- After modifying `config/docker.cmd`, copy it to `C:\Program Files\Docker-CLI\docker.cmd` (requires admin privileges)
+- Some `.ps1` scripts use `#Requires -RunAsAdministrator`
+- `.sh` scripts run inside WSL (`wsl -d Docker -- bash ...`)
+- Documentation is consolidated in `docs/setup-new-pc.md`
