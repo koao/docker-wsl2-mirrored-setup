@@ -88,11 +88,10 @@ Test-Step "Portainer container running" {
     Write-Host "  $containers"
 }
 
-# Test 6: Portainer HTTPS アクセス
-Test-Step "Portainer HTTPS access (port 9443)" {
-    [TrustAllCerts]::Trust()
+# Test 6: Portainer HTTP アクセス
+Test-Step "Portainer HTTP access (port 9000)" {
     try {
-        $response = Invoke-WebRequest -Uri 'https://127.0.0.1:9443' -UseBasicParsing -TimeoutSec 15
+        $response = Invoke-WebRequest -Uri 'http://127.0.0.1:9000' -UseBasicParsing -TimeoutSec 15
         Write-Host "  Status: $($response.StatusCode)"
     } catch {
         if ($_.Exception.Response) {
@@ -100,8 +99,6 @@ Test-Step "Portainer HTTPS access (port 9443)" {
         } else {
             throw $_
         }
-    } finally {
-        [TrustAllCerts]::Reset()
     }
 }
 

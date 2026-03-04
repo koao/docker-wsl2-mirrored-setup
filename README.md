@@ -33,7 +33,7 @@ Windows (PowerShell)
 ├── 02-init-distro.sh        # Initialize distro (create user, etc.)
 ├── 03-setup-docker.sh       # Install Docker CE + configure daemon
 ├── 04-install-windows-cli.ps1 # Install Windows-side CLI + Compose + Buildx
-├── 05-install-portainer.sh  # Deploy Portainer CE (HTTPS :9443)
+├── 05-install-portainer.sh  # Deploy Portainer CE (HTTP :9000 / HTTPS :9443)
 ├── 06-verify.ps1 / .sh      # Verification scripts
 ├── backup-distro.ps1        # Export distro to tar
 ├── restore-distro.ps1       # Import distro from tar

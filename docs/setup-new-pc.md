@@ -254,4 +254,4 @@ cat $env:USERPROFILE\.wslconfig
 - TCP 2375 は**非暗号化**。`127.0.0.1` バインドにより localhost のみアクセス可
 - **絶対に `0.0.0.0` にバインドしない**こと
 - Docker グループ所属 = WSL 内 root 相当のアクセス権
-- Portainer は HTTPS（自己署名証明書）で 9443 ポートを使用
+- Portainer は HTTP 9000 / HTTPS 9443（自己署名証明書）で使用可能

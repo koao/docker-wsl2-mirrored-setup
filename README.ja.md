@@ -33,7 +33,7 @@ Windows (PowerShell)
 ├── 02-init-distro.sh        # ディストロ内初期化（ユーザー作成等）
 ├── 03-setup-docker.sh       # Docker CE インストール + デーモン設定
 ├── 04-install-windows-cli.ps1 # Windows 側 CLI + Compose + Buildx インストール
-├── 05-install-portainer.sh  # Portainer CE デプロイ（HTTPS :9443）
+├── 05-install-portainer.sh  # Portainer CE デプロイ（HTTP :9000 / HTTPS :9443）
 ├── 06-verify.ps1 / .sh      # 動作確認スクリプト
 ├── backup-distro.ps1        # ディストロを tar にエクスポート
 ├── restore-distro.ps1       # tar からディストロをインポート

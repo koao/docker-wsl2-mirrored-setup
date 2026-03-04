@@ -43,6 +43,6 @@ fi
 
 echo ""
 echo "[OK] Portainer deployed successfully."
-echo "     Access: https://localhost:9443"
-echo "     (Accept the self-signed certificate warning)"
+echo "     Access: http://localhost:9000"
+echo "            https://localhost:9443 (self-signed certificate)"
 echo "     Create an admin account on first access."
