@@ -61,6 +61,7 @@ To restore from a backup: 01 → restore-distro.ps1 → 04 → 06.
 - **Startup check in docker.cmd**: `wsl -l --running | findstr` cannot match due to UTF-16 output. Instead, `wsl -d Docker --exec docker info` is used for direct verification.
 - **sleep infinity**: WSL shuts down a distro when there are no active sessions (even if systemd services are running). `docker.cmd` launches `start /b wsl -d Docker -- sh -c "exec sleep infinity"` on first run to keep the distro alive.
 - **--exec vs --**: `wsl --exec` runs commands directly without a shell, providing correct TTY/signal forwarding for interactive commands like `docker exec -it`. `wsl --` runs through the default shell, which caused interactive sessions to break.
+- **Volume mount path auto-conversion**: Windows paths passed via `-v` / `--volume` (e.g., `C:\Users\...`) are automatically converted to WSL format (`/mnt/c/Users/...`). WSL's `--cd` converts paths automatically, but docker's `-v` argument does not, so `docker.cmd` parses arguments and converts them internally. Named volumes (e.g., `myvolume:/app`) are passed through unchanged because their second character is not `:`. The `--mount` format is not currently supported.
 
 ## Windows-side installation paths
 

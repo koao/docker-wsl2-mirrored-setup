@@ -61,6 +61,7 @@ Windows (PowerShell)
 - **docker.cmd の起動チェック**: `wsl -l --running | findstr` は UTF-16 出力のためマッチ不可。代わりに `wsl -d Docker --exec docker info` で直接確認している。
 - **sleep infinity**: WSL はアクティブセッションがないとディストロを停止する（systemd サービスが動いていても）。`docker.cmd` が初回起動時に `start /b wsl -d Docker -- sh -c "exec sleep infinity"` でセッションを維持。
 - **--exec vs --**: `wsl --exec` はシェルを介さず直接実行。TTY/シグナル転送が正しく動作し、`docker exec -it` 等の対話的コマンドが安定する。`wsl --` はデフォルトシェル経由で実行されるため、対話的セッションが切れる問題があった。
+- **ボリュームマウントのパス自動変換**: `-v` / `--volume` で渡す Windows パス（`C:\Users\...`）を WSL 形式（`/mnt/c/Users/...`）に自動変換する。WSL の `--cd` はパスを自動変換するが、docker の `-v` 引数は変換されないため、`docker.cmd` 内で引数をパースして変換している。名前付きボリューム（`myvolume:/app`）は2文字目が `:` でないため変換せずそのまま通過する。`--mount` 形式は未対応。
 
 ## Windows 側のインストール先
 
